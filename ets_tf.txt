@@ -1,0 +1,167 @@
+provider "aws"{
+	region = "ap-south-1"
+	profile = "anshika02"
+}
+
+resource "aws_security_group" "sg_tf"{
+	name = "sg_tf"
+	description = "Allows SSH and HTTP"
+	vpc_id = "vpc-
+
+      ingress{
+	description = "SSH"
+	from_port = 22
+	to_port = 22
+	protocol = "tcp"
+	cidr_blocks = ["0.0.0.0/0"]
+      }
+
+       ingress{
+	description = "HTTp"
+	from_port = 80
+	to_port = 80
+	protocol = "tcp"
+	cidr_blocks = ["0.0.0.0/0"]
+      }
+
+       egress{
+	from_port = 0
+	to_port = 0
+	protocol = "-1"
+	cidr_blocks = ["0.0.0.0/0"]
+      }
+
+       tags = {
+	Name = "os1"
+     }
+   }
+resource "tls_private_key" "mykey"{
+	algorithm = "RSA"
+ }
+
+resource "aws_key_pairs" "gen_key"{
+	key_name = "mykey"
+	public_key = "${tls_private_key.mykey.public_key_openssh}"
+  
+   depends_on = [
+	tls_private_key.mykey
+  ]
+}
+
+resource "local_file" "key-file"{
+	content = "${tls_private_key.mykey.private_key_pem}"
+	filename = "mykey.pem"
+
+     depends_on = [
+	tls_private_key.mykey
+  ]
+}
+resource "aws_instance" "os1" {
+	ami = "ami-
+	instance_type = "t2.micro"
+	key_name = aws_key_pair.gen_key.key_name
+	security_groups = ["sg_tf"]
+
+  provisioner "remote-exec"{
+	connection{ 
+	agent = "false"
+	type = "ssh"
+	user = "ec2-user"
+	private_key = "${tls_private_key.mykey.private_key_pem}"
+	host = "${aws_instance.os1.public_ip}"
+ }
+   inline = [
+	"sudo yum install httpd php git -y",
+	"sudo systemctl restart httpd",
+	"sudo systemctl enable httpd",
+      ]
+  }
+    
+   tags = {
+	Name = "os1"
+      }
+  }
+ 
+resource "aws_ebs_volume" "ebs1"{
+	availability_zone = aws_instance.os1.availability_zone
+	size = 1
+	
+      tags = {
+	Name = "vol1"
+    }
+}
+resource "aws_volume_attachment" "ebs_attach"
+	device_name = "/dev/sdh"
+	volume_id = aws_ebs_volume.ebs1.id
+	instance_id = aws_instance.os1.id
+	force_detech = true
+  }
+
+  output "myip"{
+	value = aws_instance.os1.public_ip
+  }
+
+ resource "null_resource" "nullip"{
+	provisioner "local-exec"{
+	  command = "echo ${aws_instance.os1.public_ip
+        }
+  }
+
+  resource "null_resource" "nullmount"{
+	depends_on = [
+	  aws_volume_attachment.ebs_attach,
+        ]
+
+        connection{ 
+	agent = "false"
+	type = "ssh"
+	user = "ec2-user"
+	private_key = "${tls_private_key.mykey.private_key_pem}"
+	host = "${aws_instance.os1.public_ip}"
+   }
+   provisioner "remote-exec"{
+	inline = [
+	  "sudo mkfs.ext4 /dev/hsdh",
+          "sudo mount /dev/hsdh /var/www/html",
+	  "sudo rm -rf /var/www/html/*",
+	  "sudo git clone https://github.com/Anshika0702/terraform_task1/
+      ]
+   }
+}
+
+resource "aws_cloudfront_distribution" "tf_cloudfront"{
+     origin{
+	domain_name = "d2ozc69nmrhmc.cloudfront.net"
+	origin_id = "annshika02"
+      
+     custom_origin_config{
+	https_port = 80
+	https_port = 80
+	origin_protocol_policy = "match-viewer"
+	origin_ssh_protocols = ["TLSv1","TLSv1.1","TLSv1.2"]
+     }
+  }
+   
+  enabled = true
+  
+  restrictions{
+	geo_restriction {
+		restriction_type = "none"
+        }
+   }
+
+   viewer_certificate{
+	cloudfront_default_certificate = true
+   }
+}
+resource "null_resource" "nullremote"{
+	depends_on = [
+	  null_resource.nullmount,
+      ]
+  
+      provisioner "local-exec"{
+	  command = "start firefox ${aws_instance.os1.public_ip}"
+    }
+}
+
+
