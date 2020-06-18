@@ -132,7 +132,7 @@ resource "aws_volume_attachment" "ebs_attach"
 resource "aws_cloudfront_distribution" "tf_cloudfront"{
      origin{
 	domain_name = "d2ozc69nmrhmc.cloudfront.net"
-	origin_id = "annshika02"
+	origin_id = "anshika02"
       
      custom_origin_config{
 	https_port = 80
